@@ -67,7 +67,7 @@ module Ovh
         
         builder.request  :json
         builder.response :json
-        builder.response :logger if self.configuration.verbose_faraday?
+        builder.response :logger, nil, { headers: true, bodies: true } if self.configuration.verbose_faraday?
   
         builder.adapter :net_http
       end
