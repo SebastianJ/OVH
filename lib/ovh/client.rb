@@ -32,10 +32,21 @@ module Ovh
       request path, method: :delete, params: params, data: data, headers: headers, options: options
     end
     
-    def auth(uri)
+    def auth(method, uri, params, data)
+      uri = "#{uri}?#{URI.encode_www_form(params)}" if params && !params.empty?
+      body = JSON.generate(data) if data && !data.empty?
+
       timestamp   =   Time.now.to_i
       
-      signature   =   "$1$#{Digest::SHA1.hexdigest("#{self.configuration.application_secret}+#{self.configuration.consumer_key}+GET+#{uri}++#{timestamp}")}"
+      puzzle = [
+        self.configuration.application_secret,
+        self.configuration.consumer_key,
+        method.to_s.upcase,
+        uri,
+        body,
+        timestamp,
+      ].join '+'
+      signature   =   "$1$#{Digest::SHA1.hexdigest(puzzle)}"
 
       headers     =   {
         'X-Ovh-Timestamp'   => timestamp.to_s,
@@ -49,7 +60,7 @@ module Ovh
       
       headers["User-Agent"]         =   options.fetch(:user_agent, self.configuration.faraday.fetch(:user_agent, nil))
       headers["X-Ovh-Application"]  =   self.configuration.application_key
-      headers                       =   headers.merge(auth(uri)) if options.fetch(:sign_request, true)
+      headers                       =   headers.merge(auth(method, uri, params, data)) if options.fetch(:sign_request, true)
     
       connection    =   ::Faraday.new(url: uri) do |builder|
         builder.headers = headers
